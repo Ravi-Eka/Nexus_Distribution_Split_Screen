@@ -30,10 +30,34 @@ function AdminDashboard() {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+    const [broadcastLayout, setBroadcastLayout] = useState('host');
+    const [showMoreOptions, setShowMoreOptions] = useState(false);
+
+    // Modals & Settings State
+    const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+    const [showConnectionStats, setShowConnectionStats] = useState(false);
+    const [videoDevices, setVideoDevices] = useState([]);
+    const [audioDevices, setAudioDevices] = useState([]);
+    const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
+    const [selectedAudioDevice, setSelectedAudioDevice] = useState('');
 
     const fileInputRef = useRef(null);
     const localVideoRef = useRef(null);
     const peerConnectionsRef = useRef({});
+
+    useEffect(() => {
+        // Enumerate devices for the settings modal
+        navigator.mediaDevices.enumerateDevices()
+            .then(devices => {
+                const videos = devices.filter(d => d.kind === 'videoinput');
+                const audios = devices.filter(d => d.kind === 'audioinput');
+                setVideoDevices(videos);
+                setAudioDevices(audios);
+                if (videos.length > 0) setSelectedVideoDevice(videos[0].deviceId);
+                if (audios.length > 0) setSelectedAudioDevice(audios[0].deviceId);
+            })
+            .catch(console.error);
+    }, []);
 
     useEffect(() => {
         if (!socket) return;
@@ -142,7 +166,11 @@ function AdminDashboard() {
         try {
             let stream;
             if (type === 'camera') {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const constraints = {
+                    video: selectedVideoDevice ? { deviceId: { exact: selectedVideoDevice } } : true,
+                    audio: selectedAudioDevice ? { deviceId: { exact: selectedAudioDevice } } : true
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
             } else {
                 stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             }
@@ -626,9 +654,9 @@ function AdminDashboard() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="w-full h-full flex flex-col md:flex-row gap-4 items-center justify-center">
+                                    <div className={`w-full h-full flex flex-col md:flex-row gap-4 items-center justify-center transition-all duration-500`}>
                                         {/* Local User Tile */}
-                                        <div className="relative w-full md:w-2/3 h-full max-h-[70vh] bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800 group">
+                                        <div className={`relative ${broadcastLayout === 'host' ? 'w-full md:w-2/3 h-full max-h-[70vh]' : 'w-full md:w-1/3 h-full max-h-[40vh] order-2'} bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800 group transition-all duration-500`}>
                                             <video ref={localVideoRef} autoPlay muted className="w-full h-full object-contain" />
                                             {/* Name Tag overlay */}
                                             <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 text-white">
@@ -642,7 +670,7 @@ function AdminDashboard() {
                                         </div>
 
                                         {/* Preview Grid Tile (Attendees layout) */}
-                                        <div className="w-full md:w-1/3 flex flex-col gap-4 h-full max-h-[70vh]">
+                                        <div className={`flex flex-col gap-4 ${broadcastLayout === 'host' ? 'w-full md:w-1/3 h-full max-h-[70vh]' : 'w-full md:w-2/3 h-full max-h-[70vh] order-1'} transition-all duration-500`}>
                                             <div className="flex-1 bg-gray-800 rounded-2xl relative overflow-hidden border border-gray-700 flex flex-col items-center justify-center shadow-lg group">
                                                 <div className="w-full h-full p-4 flex flex-col">
                                                     <span className="text-gray-400 text-xs font-semibold mb-2 flex items-center gap-2 uppercase tracking-wide">
@@ -702,18 +730,123 @@ function AdminDashboard() {
                                     )}
 
                                     <div className="w-px h-8 bg-gray-700 mx-2" />
-                                    <button className="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-white border border-gray-700 transition-colors">
-                                        <MoreVertical className="w-5 h-5" />
-                                    </button>
+                                    <div className="relative">
+                                        <button onClick={() => setShowMoreOptions(prev => !prev)} className={`w-12 h-12 rounded-full flex items-center justify-center border transition-colors ${showMoreOptions ? 'bg-gray-700 text-white border-transparent' : 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'}`}>
+                                            <MoreVertical className="w-5 h-5" />
+                                        </button>
+                                        {showMoreOptions && (
+                                            <div className="absolute bottom-full right-0 mb-4 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl py-2 overflow-hidden z-20">
+                                                <button onClick={() => { setShowDeviceSettings(true); setShowMoreOptions(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3 transition-colors">
+                                                    <Settings className="w-4 h-4" /> Device Settings
+                                                </button>
+                                                <button onClick={() => { setShowConnectionStats(true); setShowMoreOptions(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3 transition-colors">
+                                                    <Activity className="w-4 h-4" /> Connection stats
+                                                </button>
+                                                <div className="h-px bg-gray-700 my-1" />
+                                                <button onClick={() => { setActiveTab('topology'); setShowMoreOptions(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-3 transition-colors">
+                                                    <LayoutDashboard className="w-4 h-4" /> Target Screen Matrix
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex-1 flex justify-end">
-                                    <div className="flex bg-gray-800 p-1 rounded-xl border border-gray-700">
-                                        <button className="px-3 py-1.5 text-xs font-semibold bg-gray-700 text-white rounded-lg shadow-sm">Your layout</button>
-                                        <button className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition-colors">Attendees'</button>
+                                    <div className={`flex bg-gray-800 p-1 rounded-xl border border-gray-700 ${!isSharing ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <button disabled={!isSharing} onClick={() => setBroadcastLayout('host')} className={`px-3 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition-colors ${broadcastLayout === 'host' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}>Your layout</button>
+                                        <button disabled={!isSharing} onClick={() => setBroadcastLayout('attendees')} className={`px-3 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition-colors ${broadcastLayout === 'attendees' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}>Attendees'</button>
                                     </div>
                                 </div>
                             </div>
                         </motion.div>
+                    )}
+
+                    {/* Modals for Live Broadcast */}
+                    {showDeviceSettings && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
+                                <h3 className="text-xl font-bold text-white mb-6">Device Settings</h3>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Microphone</label>
+                                        <select
+                                            value={selectedAudioDevice}
+                                            onChange={(e) => setSelectedAudioDevice(e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                            {audioDevices.length === 0 && <option value="">No microphones found</option>}
+                                            {audioDevices.map(d => (
+                                                <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${d.deviceId.substring(0, 5)}...`}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Camera</label>
+                                        <select
+                                            value={selectedVideoDevice}
+                                            onChange={(e) => setSelectedVideoDevice(e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                            {videoDevices.length === 0 && <option value="">No cameras found</option>}
+                                            {videoDevices.map(d => (
+                                                <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${d.deviceId.substring(0, 5)}...`}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex justify-end">
+                                    <button
+                                        onClick={() => setShowDeviceSettings(false)}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-6 rounded-xl transition-colors shadow-sm"
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+
+                    {showConnectionStats && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
+                                <h3 className="text-xl font-bold text-white mb-6">Connection Stats</h3>
+
+                                <div className="space-y-4">
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex justify-between items-center">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-400 text-sm">Server Status</span>
+                                            <span className="text-white font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
+                                        </div>
+                                        <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                                    </div>
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex justify-between items-center">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-400 text-sm">Active WebRTC Peers</span>
+                                            <span className="text-white font-medium">{isSharing ? clients.length : '0 (Not broadcasting)'}</span>
+                                        </div>
+                                        <Activity className={`w-5 h-5 ${isSharing ? 'text-indigo-400' : 'text-gray-600'}`} />
+                                    </div>
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex justify-between items-center">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-400 text-sm">Target Topology</span>
+                                            <span className="text-white font-medium">{gridCols} x {gridRows} Matrix</span>
+                                        </div>
+                                        <LayoutGrid className="w-5 h-5 text-gray-500" />
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex justify-end">
+                                    <button
+                                        onClick={() => setShowConnectionStats(false)}
+                                        className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-medium py-2 px-6 rounded-xl transition-colors shadow-sm"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
                     )}
 
                     {activeTab === 'analytics' && (
