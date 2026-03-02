@@ -1,0 +1,216 @@
+Project Plan: Multi-PC Video Wall Solution
+Project Overview:
+
+The objective is to stream one video across six PCs (connected to six TVs) in a 3x2 video wall layout. The video will be split into six sections, with each PC displaying one part of the video, synchronized to create a single cohesive video wall.
+
+The system will run on a local network, with no external cloud dependencies. The solution will involve video streaming, real-time synchronization, and grid display layout across multiple screens.
+
+1. Requirements
+Functional Requirements:
+
+Single Video Stream: A video from a central PC should be split and streamed to six PCs, each displaying one segment of the video.
+
+Grid Layout (3x2): Each PC displays one part of the video in a grid layout, forming a 3x2 grid on the wall.
+
+Synchronization: Video playback on all six screens must be synchronized to ensure they display the video in sync.
+
+Web-based Interface: The system should run entirely in web browsers, with no software installation required on the client machines.
+
+Local Network: The system should function over a local area network (LAN), ensuring fast and low-latency communication.
+
+Non-Functional Requirements:
+
+Real-Time Streaming: Low-latency video streaming for seamless synchronization.
+
+Scalability: The solution should be extensible to more screens if needed (e.g., 3x3 or 4x4 grids).
+
+Ease of Use: Simple interface to start and stop video playback, with minimal configuration required.
+
+2. Tech Stack
+Frontend (Client-Side):
+
+React: Used for building the web interface that will be loaded on each of the six PCs to display the video segments.
+
+Vite: A fast, modern build tool that works well with React, providing faster builds and hot module reloading.
+
+CSS Grid: For creating the 3x2 grid layout on each screen.
+
+HTML5 <video> element: To display the video content on the webpage. Each client PC will use this element to show its segment of the video.
+
+Backend (Server-Side):
+
+FastAPI (Preferred) or Django:
+
+FastAPI: Ideal for real-time, asynchronous operations (such as WebSocket communication) and faster performance. It will handle streaming, signaling, and synchronization of video.
+
+Django: A solid choice if you need more complex features like a built-in admin interface for monitoring or additional backend services.
+
+Socket.IO (via FastAPI/Django Channels) or WebRTC:
+
+Socket.IO: A library for real-time, bidirectional communication between the server and the client, used to stream data and synchronize playback across all screens.
+
+WebRTC: For peer-to-peer video streaming, but this requires a signaling server (which could be built with Socket.IO).
+
+FFmpeg (Optional): For transcoding or splitting the video into smaller segments before streaming.
+
+Database (Optional):
+
+PostgreSQL: For storing metadata such as video logs, user interaction, video details (optional based on project requirements). You can use Django ORM (Django) or SQLAlchemy (FastAPI) to interact with PostgreSQL.
+
+Networking:
+
+WebSockets or WebRTC: For low-latency real-time communication between the server and each client (the six PCs). WebRTC is more suitable for direct peer-to-peer video streaming, while WebSockets will be used for signaling and synchronization.
+
+3. Architecture & Workflow
+System Architecture:
+
+Video Source (PC 7):
+
+Hosts and streams the video to all client PCs.
+
+Splits the video into six segments (using WebRTC or WebSockets to deliver each segment).
+
+Sends synchronization signals to all PCs to start the video simultaneously.
+
+Client PCs (1–6):
+
+Each PC will display a segment of the video (1/6th of the total screen).
+
+The layout will be a 3x2 grid, with each PC rendering its assigned video segment.
+
+WebSockets/WebRTC will receive the video stream and synchronization signals from the central server.
+
+Backend Server:
+
+Handles video signaling and real-time communication between the server (PC 7) and clients (PCs 1–6).
+
+Sends synchronization signals to ensure video starts at the same time across all screens.
+
+Socket.IO or WebRTC signaling will manage connections, message passing, and synchronization.
+
+Optionally, store logs or metadata (video status, logs) in PostgreSQL.
+
+Workflow:
+
+The central PC (PC 7) starts playing the video.
+
+Socket.IO/WebRTC signaling sends sync signals to all client PCs to start video playback at the same time.
+
+Each client PC receives its video segment and displays it using the HTML5 <video> element within a CSS Grid layout.
+
+All clients are synchronized using the WebSocket or WebRTC mechanism, and the video plays in sync across all screens.
+
+4. Development Plan
+Day 1–2: Setup and Initial Configuration
+
+Set up the development environment:
+
+Install React, Vite, and other development tools.
+
+Install FastAPI or Django for the backend server.
+
+Install PostgreSQL (if using a database for metadata).
+
+Create the basic web application:
+
+Use React and Vite to create the skeleton of the frontend.
+
+Set up a 3x2 CSS Grid layout for the video segments.
+
+Set up WebSocket/Socket.IO or WebRTC for real-time communication.
+
+Day 3–5: Video Streaming and Splitting
+
+Video Source (PC 7):
+
+Implement the video streaming system.
+
+Use FFmpeg or WebRTC to split the video into six parts.
+
+Stream the video to the six clients.
+
+Frontend Client Implementation:
+
+Set up the video player on each PC, ensuring that it displays only one segment of the video.
+
+Implement synchronization using WebSockets/Socket.IO or WebRTC.
+
+Day 6–7: Synchronization and Testing
+
+Implement synchronization logic:
+
+Ensure that the video starts at the same time on all client PCs.
+
+Use WebSocket/Socket.IO to send synchronization commands from the server to the clients.
+
+Test synchronization across all screens.
+
+Testing:
+
+Test video playback and synchronization on each screen.
+
+Test video quality and latency (optimize if necessary).
+
+Day 8–9: UI/UX Design and Debugging
+
+Finalize the UI:
+
+Add simple controls for play, pause, and stop buttons.
+
+Ensure the video display is responsive across different screen resolutions.
+
+Debugging:
+
+Ensure that all components (frontend, backend, video stream) are working together seamlessly.
+
+Resolve any issues with synchronization, buffering, or playback.
+
+Day 10–11: Optimization and Final Testing
+
+Optimize network performance:
+
+Test video quality on different network speeds.
+
+Implement quality adjustment or buffering for smoother playback.
+
+Test scalability:
+
+Verify that the system can handle different numbers of clients (e.g., scaling up to a 3x3 or 4x4 grid).
+
+Ensure the system is robust against network interruptions.
+
+Day 12: Deployment and Final Adjustments
+
+Deploy the system:
+
+Deploy the backend server locally.
+
+Launch the web app on each PC, ensuring smooth video playback and synchronization.
+
+Final testing:
+
+Perform comprehensive tests to verify that everything works as expected.
+
+5. Risk Management
+
+Network Latency: Since this system works over a local network, ensure the network is fast enough to support high-quality video streaming. Test with different network speeds.
+
+Browser Compatibility: Ensure the system works across different browsers (Chrome, Firefox, etc.). Test video playback and synchronization across all supported browsers.
+
+Error Handling: Implement robust error handling for disconnected clients, buffering issues, or video playback failures.
+
+6. Milestones
+
+Week 1:
+
+Setup, frontend development (React/Vite), and backend (FastAPI/Django).
+
+Begin implementing video streaming and synchronization.
+
+Week 2:
+
+Finalize synchronization and video splitting.
+
+Implement full testing and debugging, followed by optimization.
+
+Deployment and final adjustments.
