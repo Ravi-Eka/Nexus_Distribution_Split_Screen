@@ -123,12 +123,41 @@ function AdminDashboard() {
         }
     };
 
-    const startScreenShare = async () => {
+    // Sync media track states when UI toggles change
+    useEffect(() => {
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
+            const stream = localVideoRef.current.srcObject;
+            stream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+        }
+    }, [isMuted]);
+
+    useEffect(() => {
+        if (localVideoRef.current && localVideoRef.current.srcObject) {
+            const stream = localVideoRef.current.srcObject;
+            stream.getVideoTracks().forEach(track => track.enabled = !isVideoOff);
+        }
+    }, [isVideoOff]);
+
+    const startBroadcast = async (type = 'screen') => {
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            let stream;
+            if (type === 'camera') {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            } else {
+                stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            }
+
             if (localVideoRef.current) localVideoRef.current.srcObject = stream;
             setIsSharing(true);
-            stream.getVideoTracks()[0].onended = () => stopScreenShare();
+
+            // If user stops sharing via browser built-in UI
+            if (stream.getVideoTracks().length > 0) {
+                stream.getVideoTracks()[0].onended = () => stopBroadcast();
+            }
+
+            // Apply initial toggle states
+            stream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+            stream.getVideoTracks().forEach(track => track.enabled = !isVideoOff);
 
             const currentClients = [...clients];
             for (const pos of currentClients) {
@@ -143,11 +172,12 @@ function AdminDashboard() {
                 socket.emit('screen_share_offer', { target_position: pos, offer: offer });
             }
         } catch (err) {
-            console.error("Error sharing screen", err);
+            console.error("Error starting broadcast", err);
+            setIsSharing(false);
         }
     };
 
-    const stopScreenShare = () => {
+    const stopBroadcast = () => {
         if (localVideoRef.current && localVideoRef.current.srcObject) {
             localVideoRef.current.srcObject.getTracks().forEach(track => track.stop());
             localVideoRef.current.srcObject = null;
@@ -580,12 +610,20 @@ function AdminDashboard() {
                                         </div>
                                         <h2 className="text-2xl font-bold text-white mb-2">Start your stream</h2>
                                         <p className="text-gray-400 mb-8">Share your screen or camera to broadcast directly to the {gridCols}x{gridRows} video matrix.</p>
-                                        <button
-                                            onClick={startScreenShare}
-                                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-full shadow-lg shadow-indigo-900/50 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
-                                        >
-                                            <MonitorUp className="w-5 h-5" /> Start Screen Matrix Share
-                                        </button>
+                                        <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                                            <button
+                                                onClick={() => startBroadcast('screen')}
+                                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-full shadow-lg shadow-indigo-900/50 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+                                            >
+                                                <MonitorUp className="w-5 h-5" /> Share Screen
+                                            </button>
+                                            <button
+                                                onClick={() => startBroadcast('camera')}
+                                                className="bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 px-8 rounded-full shadow-lg border border-gray-700 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+                                            >
+                                                <Video className="w-5 h-5 text-gray-300" /> Share Camera
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="w-full h-full flex flex-col md:flex-row gap-4 items-center justify-center">
@@ -648,14 +686,15 @@ function AdminDashboard() {
 
                                     {!isSharing ? (
                                         <button
-                                            onClick={startScreenShare}
+                                            onClick={() => startBroadcast('screen')}
                                             className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-sm transition-all border border-indigo-500/50"
+                                            title="Start Screen Broadcast"
                                         >
                                             <MonitorUp className="w-5 h-5" />
                                         </button>
                                     ) : (
                                         <button
-                                            onClick={stopScreenShare}
+                                            onClick={stopBroadcast}
                                             className="bg-red-500 hover:bg-red-600 text-white rounded-2xl px-6 h-12 flex items-center justify-center shadow-sm transition-all font-semibold gap-2"
                                         >
                                             <PhoneOff className="w-5 h-5" /> End Stream
